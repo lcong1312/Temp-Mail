@@ -1,0 +1,14 @@
+# Cloudflare Worker Configuration
+name = "tempmail-store2003"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# KV Namespace binding
+[[kv_namespaces]]
+binding = "TEMPMAIL_KV"
+id = "YOUR_KV_NAMESPACE_ID"  # Thay bằng ID thật sau khi tạo
+
+# Custom domain (optional)
+# routes = [
+#   { pattern = "api.store2003.online/*", zone_name = "store2003.online" }
+# ]

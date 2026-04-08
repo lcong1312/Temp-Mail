@@ -1,0 +1,141 @@
+@{
+    ViewBag.Title = "TempMail - Email Tạm Thời";
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TempMail - Email Tạm Thời | store2003.online</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="@Url.Content("~/Content/tempmail.css")">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📧%3C/text%3E%3C/svg%3E">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="logo">
+                <i class="fas fa-envelope-open-text"></i>
+                <h1>TempMail</h1>
+            </div>
+            <p class="tagline">Email tạm thời miễn phí - Bảo vệ quyền riêng tư của bạn</p>
+        </header>
+
+        <main>
+            <section class="email-section">
+                <div class="email-box">
+                    <label><i class="fas fa-at"></i> Email tạm thời của bạn:</label>
+                    <div class="email-display">
+                        <input type="text" id="tempEmail" readonly placeholder="Đang tạo email...">
+                    </div>
+                    <div class="email-actions">
+                        <button class="btn-copy" onclick="copyEmail()" title="Sao chép">
+                            <i class="fas fa-copy"></i>
+                            <span>Sao chép</span>
+                        </button>
+                        <button class="btn-refresh" onclick="generateNewEmail()" title="Tạo email mới">
+                            <i class="fas fa-sync-alt"></i>
+                            <span>Tạo mới</span>
+                        </button>
+                    </div>
+                    <div class="copy-notification" id="copyNotification">
+                        <i class="fas fa-check"></i> Đã sao chép!
+                    </div>
+                </div>
+
+                <div class="timer-box">
+                    <i class="fas fa-clock"></i>
+                    <span>Tự động làm mới sau: <strong id="countdown">15</strong>s</span>
+                    <span style="margin-left: 15px;">|</span>
+                    <span style="margin-left: 15px;"><i class="fas fa-envelope"></i> <strong id="emailCount">0</strong> email</span>
+                </div>
+            </section>
+
+            <section class="inbox-section">
+                <div class="inbox-header">
+                    <h2><i class="fas fa-inbox"></i> Hộp thư đến</h2>
+                    <button class="btn-refresh-inbox" onclick="refreshInbox()">
+                        <i class="fas fa-sync-alt"></i>
+                    </button>
+                </div>
+
+                <div class="inbox-tabs">
+                    <button class="inbox-tab active" onclick="filterEmails('all')" data-filter="all">
+                        <i class="fas fa-envelope"></i> Tất cả
+                        <span class="badge" id="countAll">0</span>
+                    </button>
+                    <button class="inbox-tab" onclick="filterEmails('unread')" data-filter="unread">
+                        <i class="fas fa-envelope-open"></i> Chưa đọc
+                        <span class="badge" id="countUnread">0</span>
+                    </button>
+                    <button class="inbox-tab" onclick="filterEmails('spam')" data-filter="spam">
+                        <i class="fas fa-exclamation-triangle"></i> Spam
+                        <span class="badge" id="countSpam">0</span>
+                    </button>
+                </div>
+
+                <div class="inbox-list" id="inboxList">
+                    <div class="empty-inbox">
+                        <i class="fas fa-envelope-open"></i>
+                        <p>Hộp thư trống</p>
+                        <span>Đang chờ email đến...</span>
+                    </div>
+                </div>
+            </section>
+
+            <section class="email-detail" id="emailDetail" style="display: none;">
+                <div class="detail-header">
+                    <button class="btn-back" onclick="closeEmailDetail()">
+                        <i class="fas fa-arrow-left"></i> Quay lại
+                    </button>
+                    <button class="btn-delete" onclick="deleteEmail()">
+                        <i class="fas fa-trash"></i> Xóa
+                    </button>
+                </div>
+                <div class="detail-content">
+                    <h3 id="emailSubject"></h3>
+                    <div class="email-detail-meta">
+                        <span><i class="fas fa-user"></i> <span id="emailFrom"></span></span>
+                        <span><i class="fas fa-clock"></i> <span id="emailTime"></span></span>
+                        <span><i class="fas fa-envelope"></i> <span id="emailTo"></span></span>
+                    </div>
+                    <div class="email-body" id="emailBody"></div>
+                </div>
+            </section>
+        </main>
+
+        <section class="features">
+            <h2>Tại sao chọn TempMail?</h2>
+            <div class="features-grid">
+                <div class="feature-item">
+                    <i class="fas fa-shield-alt"></i>
+                    <h3>Bảo mật</h3>
+                    <p>Bảo vệ email thật của bạn khỏi spam</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-bolt"></i>
+                    <h3>Nhanh chóng</h3>
+                    <p>Tạo email tạm thời chỉ trong 1 giây</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-infinity"></i>
+                    <h3>Không giới hạn</h3>
+                    <p>Tạo bao nhiêu email tùy thích</p>
+                </div>
+                <div class="feature-item">
+                    <i class="fas fa-dollar-sign"></i>
+                    <h3>Miễn phí</h3>
+                    <p>Hoàn toàn miễn phí, không cần đăng ký</p>
+                </div>
+            </div>
+        </section>
+
+        <footer>
+            <p>&copy; 2025 TempMail | Tất cả quyền được bảo lưu</p>
+        </footer>
+    </div>
+
+    <script src="@Url.Content("~/Scripts/tempmail.js")"></script>
+</body>
+</html>
