@@ -132,6 +132,78 @@ main {
     box-shadow: 0 5px 20px rgba(40, 167, 69, 0.4);
 }
 
+.restore-email-box {
+    margin-top: 22px;
+    padding: 18px;
+    background: #f8f9fa;
+    border: 2px solid #e9ecef;
+    border-radius: 14px;
+}
+
+.restore-email-box label {
+    display: block;
+    margin-bottom: 10px;
+    color: #555;
+    font-weight: 600;
+}
+
+.restore-email-form {
+    display: flex;
+    gap: 12px;
+}
+
+.restore-email-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 12px 15px;
+    border: 2px solid #e0e0e0;
+    border-radius: 10px;
+    color: #333;
+    font-size: 1rem;
+}
+
+.restore-email-form input:focus {
+    outline: none;
+    border-color: #667eea;
+    box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.12);
+}
+
+.btn-restore-email {
+    padding: 12px 20px;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    color: white;
+    background: linear-gradient(135deg, #ff9a56 0%, #ff6b6b 100%);
+    font-size: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    transition: all 0.3s ease;
+    white-space: nowrap;
+}
+
+.btn-restore-email:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 20px rgba(255, 107, 107, 0.35);
+}
+
+.restore-email-message {
+    min-height: 20px;
+    margin-top: 10px;
+    font-size: 0.9rem;
+    font-weight: 600;
+}
+
+.restore-email-message.error {
+    color: #dc3545;
+}
+
+.restore-email-message.success {
+    color: #28a745;
+}
+
 .copy-notification {
     position: absolute;
     top: -40px;
@@ -797,6 +869,14 @@ footer {
         font-size: 0.95rem;
     }
 
+    .restore-email-form {
+        flex-direction: column;
+    }
+
+    .btn-restore-email {
+        justify-content: center;
+    }
+
     .inbox-header {
         flex-direction: row;
         gap: 10px;
@@ -972,6 +1052,10 @@ footer {
         width: 100%;
         justify-content: center;
         padding: 12px 20px;
+    }
+
+    .restore-email-box {
+        padding: 14px;
     }
 
     .timer-box {

@@ -39,6 +39,17 @@
                             <span>Tạo mới</span>
                         </button>
                     </div>
+                    <div class="restore-email-box">
+                        <label for="restoreEmail"><i class="fas fa-history"></i> Lấy lại hộp thư theo email:</label>
+                        <div class="restore-email-form">
+                            <input type="email" id="restoreEmail" placeholder="nhap-email-cu@store2003.online" onkeydown="handleRestoreEmailKeydown(event)">
+                            <button class="btn-restore-email" onclick="loadInboxByEmail()" title="Lấy gmail">
+                                <i class="fas fa-search"></i>
+                                <span>Lấy gmail</span>
+                            </button>
+                        </div>
+                        <div class="restore-email-message" id="restoreEmailMessage"></div>
+                    </div>
                     <div class="copy-notification" id="copyNotification">
                         <i class="fas fa-check"></i> Đã sao chép!
                     </div>

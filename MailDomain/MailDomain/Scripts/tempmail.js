@@ -60,7 +60,12 @@ async function generateNewEmail() {
         
         document.getElementById('tempEmail').value = currentEmail;
         emails = [];
-        updateInboxUI();
+        filteredEmails = [];
+        updateCounts();
+        closeEmailDetail();
+        currentFilter = 'all';
+        filterEmails(currentFilter);
+        setRestoreEmailMessage('');
         
         const input = document.getElementById('tempEmail');
         input.style.animation = 'none';
@@ -77,7 +82,7 @@ async function generateNewEmail() {
 
 // Fetch emails from server
 async function fetchEmails() {
-    if (!currentUsername) return;
+    if (!currentUsername) return false;
     
     try {
         const response = await fetch(`${API_BASE}/api/emails/${currentUsername}`);
@@ -86,27 +91,226 @@ async function fetchEmails() {
         
         const data = await response.json();
         
-        emails = (data.emails || []).map(email => ({
-            id: email.id,
-            from: email.from,
-            subject: email.subject || '(Không có tiêu đề)',
-            body: email.body,
-            time: new Date(email.receivedAt).toLocaleTimeString('vi-VN', {
-                hour: '2-digit',
-                minute: '2-digit'
-            }),
-            date: new Date(email.receivedAt).toLocaleDateString('vi-VN'),
-            fullDate: email.receivedAt,
-            unread: !email.read,
-            isSpam: detectSpam(email)
-        }));
+        emails = (data.emails || []).map(email => {
+            const originalSubject = email.subject || '(Không có tiêu đề)';
+            const verificationCode = extractVerificationCode(email);
+            
+            return {
+                id: email.id,
+                from: email.from,
+                subject: verificationCode ? `Code: ${verificationCode}` : originalSubject,
+                originalSubject: originalSubject,
+                body: email.body,
+                time: new Date(email.receivedAt).toLocaleTimeString('vi-VN', {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                date: new Date(email.receivedAt).toLocaleDateString('vi-VN'),
+                fullDate: email.receivedAt,
+                unread: !email.read,
+                isSpam: detectSpam(email)
+            };
+        });
         
         updateCounts();
         filterEmails(currentFilter);
+        return true;
         
     } catch (error) {
         console.error('Error fetching emails:', error);
+        return false;
     }
+}
+
+function extractVerificationCode(email) {
+    const readableBody = getReadableEmailBody(email.body || '');
+    const text = [
+        email.subject || '',
+        readableBody,
+        extractEncodedMimeText(email.body || '')
+    ].join('\n');
+    
+    const patterns = [
+        /(?:verification|verify|login|security|authentication|auth|confirm|confirmation|otp|passcode|code|mã|ma)\D{0,120}(\d[\d\s-]{2,12}\d)/gi,
+        /(\d[\d\s-]{2,12}\d)\D{0,120}(?:verification|verify|login|security|authentication|auth|confirm|confirmation|otp|passcode|code|mã|ma)/gi
+    ];
+    
+    for (const pattern of patterns) {
+        let match;
+        while ((match = pattern.exec(text)) !== null) {
+            const code = normalizeCode(match[1]);
+            if (isLikelyVerificationCode(code)) {
+                return code;
+            }
+        }
+    }
+    
+    const fallbackMatches = text.match(/\b\d{4,8}\b/g) || [];
+    for (const match of fallbackMatches) {
+        const code = normalizeCode(match);
+        if (isLikelyVerificationCode(code)) {
+            return code;
+        }
+    }
+    
+    return '';
+}
+
+function getReadableEmailBody(body) {
+    let text = extractEncodedMimeText(body || '');
+    
+    if (!text) {
+        text = decodeQuotedPrintable(body || '');
+    }
+    
+    text = text
+        .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, ' ')
+        .replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, ' ')
+        .replace(/^--[^\r\n]+$/gm, ' ')
+        .replace(/^Content-[^\r\n]+$/gim, ' ')
+        .replace(/^MIME-Version:[^\r\n]+$/gim, ' ')
+        .replace(/<[^>]+>/g, ' ');
+    
+    text = decodeHtmlEntities(text);
+    
+    return text.replace(/\s+/g, ' ').trim();
+}
+
+function extractEncodedMimeText(body) {
+    if (!body) return '';
+    
+    const parts = body.split(/\r?\n--[^\r\n]+/);
+    const decodedParts = [];
+    
+    for (const part of parts) {
+        const lowerPart = part.toLowerCase();
+        const isTextPart = lowerPart.includes('content-type: text/plain') || lowerPart.includes('content-type: text/html');
+        if (!isTextPart) continue;
+        
+        const contentMatch = part.match(/\r?\n\r?\n([\s\S]*)$/);
+        if (!contentMatch) continue;
+        
+        let content = contentMatch[1]
+            .replace(/\r?\n--$/, '')
+            .trim();
+        
+        if (!content) continue;
+        
+        if (lowerPart.includes('content-transfer-encoding: base64')) {
+            content = decodeBase64Utf8(content.replace(/\s+/g, ''));
+        } else if (lowerPart.includes('content-transfer-encoding: quoted-printable')) {
+            content = decodeQuotedPrintable(content);
+        }
+        
+        decodedParts.push(content);
+    }
+    
+    return decodedParts.join('\n');
+}
+
+function decodeBase64Utf8(value) {
+    try {
+        const binary = atob(value);
+        const bytes = new Uint8Array(binary.length);
+        
+        for (let i = 0; i < binary.length; i++) {
+            bytes[i] = binary.charCodeAt(i);
+        }
+        
+        return new TextDecoder('utf-8').decode(bytes);
+    } catch (error) {
+        console.error('Error decoding base64:', error);
+        return '';
+    }
+}
+
+function decodeHtmlEntities(text) {
+    const textarea = document.createElement('textarea');
+    textarea.innerHTML = text;
+    return textarea.value;
+}
+
+function normalizeCode(value) {
+    return (value || '').replace(/\D/g, '');
+}
+
+function isLikelyVerificationCode(code) {
+    if (!/^\d{4,8}$/.test(code)) return false;
+    if (/^(19|20)\d{2}$/.test(code)) return false;
+    return true;
+}
+
+function handleRestoreEmailKeydown(event) {
+    if (event.key === 'Enter') {
+        event.preventDefault();
+        loadInboxByEmail();
+    }
+}
+
+async function loadInboxByEmail() {
+    const restoreInput = document.getElementById('restoreEmail');
+    const email = restoreInput.value.trim().toLowerCase();
+    const parsed = parseTempMailAddress(email);
+    
+    if (!parsed.valid) {
+        setRestoreEmailMessage(parsed.message, true);
+        restoreInput.focus();
+        return;
+    }
+    
+    showLoading(true);
+    
+    try {
+        currentUsername = parsed.username;
+        currentEmail = `${parsed.username}@${DOMAIN}`;
+        document.getElementById('tempEmail').value = currentEmail;
+        emails = [];
+        filteredEmails = [];
+        updateCounts();
+        closeEmailDetail();
+        currentFilter = 'all';
+        
+        const success = await fetchEmails();
+        if (!success) {
+            setRestoreEmailMessage('Không thể lấy hộp thư. Vui lòng thử lại sau.', true);
+            return;
+        }
+        
+        setRestoreEmailMessage(`Đã lấy ${emails.length} email từ ${currentEmail}.`, false);
+        countdown = 15;
+    } catch (error) {
+        console.error('Error loading inbox by email:', error);
+        setRestoreEmailMessage('Không thể lấy hộp thư. Vui lòng thử lại sau.', true);
+    } finally {
+        showLoading(false);
+    }
+}
+
+function parseTempMailAddress(email) {
+    if (!email) {
+        return { valid: false, message: 'Vui lòng nhập email cần lấy lại.' };
+    }
+    
+    const parts = email.split('@');
+    if (parts.length !== 2 || parts[1] !== DOMAIN) {
+        return { valid: false, message: `Chỉ hỗ trợ email dạng ten@${DOMAIN}.` };
+    }
+    
+    const username = parts[0];
+    if (!/^[a-z0-9]{3,30}$/.test(username)) {
+        return { valid: false, message: 'Tên email không hợp lệ.' };
+    }
+    
+    return { valid: true, username };
+}
+
+function setRestoreEmailMessage(message, isError) {
+    const messageEl = document.getElementById('restoreEmailMessage');
+    if (!messageEl) return;
+    
+    messageEl.textContent = message;
+    messageEl.classList.toggle('error', !!isError);
+    messageEl.classList.toggle('success', !!message && !isError);
 }
 
 // Detect spam
