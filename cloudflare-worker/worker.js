@@ -1,5 +1,17 @@
-// Cloudflare Worker - TempMail store2003.online
+// Cloudflare Worker - TempMail Multi-Domain
 // Xử lý email đến và lưu vào KV Storage
+// Supported domains: store2003.online, lcong2003.cyou, store2003.cyou, store2003.bond, lcong2003.bond
+
+const ALLOWED_DOMAINS = [
+  'store2003.online',
+  'lcong2003.cyou',
+  'store2003.cyou',
+  'store2003.bond',
+  'lcong2003.bond',
+  'vcong2003.cyou'
+];
+
+const DEFAULT_DOMAIN = 'store2003.online';
 
 export default {
   // Xử lý email đến
@@ -23,11 +35,20 @@ export default {
       read: false
     };
     
-    // Lấy username từ email (phần trước @)
-    const username = recipient.split('@')[0].toLowerCase();
+    // Lấy username và domain từ email
+    const [username, domain] = recipient.split('@').map(s => s.toLowerCase());
+    
+    // Chỉ xử lý email đến các domain được phép
+    if (!ALLOWED_DOMAINS.includes(domain)) {
+      console.log(`Rejected email for unknown domain: ${domain}`);
+      return;
+    }
+    
+    // Lưu vào KV với key gồm cả domain để tránh trùng username giữa các domain
+    const kvKey = `emails:${username}@${domain}`;
     
     // Lấy danh sách email hiện có của user
-    let userEmails = await env.TEMPMAIL_KV.get(`emails:${username}`, 'json') || [];
+    let userEmails = await env.TEMPMAIL_KV.get(kvKey, 'json') || [];
     
     // Thêm email mới vào đầu danh sách
     userEmails.unshift(emailData);
@@ -39,7 +60,7 @@ export default {
     
     // Lưu vào KV với TTL 24 giờ
     await env.TEMPMAIL_KV.put(
-      `emails:${username}`, 
+      kvKey, 
       JSON.stringify(userEmails),
       { expirationTtl: 86400 } // 24 giờ
     );
@@ -77,8 +98,10 @@ export default {
 
     try {
       // GET /api/emails/:username - Lấy danh sách email
+      // Hỗ trợ query param ?domain=store2003.bond để chọn domain
       if (path.startsWith('/api/emails/') && request.method === 'GET') {
         const username = path.split('/')[3]?.toLowerCase();
+        const domain = url.searchParams.get('domain')?.toLowerCase() || DEFAULT_DOMAIN;
         
         if (!username || !this.isValidUsername(username)) {
           return new Response(
@@ -87,12 +110,20 @@ export default {
           );
         }
         
-        const emails = await env.TEMPMAIL_KV.get(`emails:${username}`, 'json') || [];
+        if (!ALLOWED_DOMAINS.includes(domain)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid domain', allowedDomains: ALLOWED_DOMAINS }), 
+            { status: 400, headers: corsHeaders }
+          );
+        }
+        
+        const kvKey = `emails:${username}@${domain}`;
+        const emails = await env.TEMPMAIL_KV.get(kvKey, 'json') || [];
         
         return new Response(
           JSON.stringify({ 
             success: true, 
-            email: `${username}@store2003.online`,
+            email: `${username}@${domain}`,
             emails: emails 
           }), 
           { headers: corsHeaders }
@@ -100,12 +131,25 @@ export default {
       }
       
       // POST /api/register - Đăng ký email mới (tạo inbox trống)
+      // Hỗ trợ body JSON: { domain: "store2003.bond" } để chọn domain
       if (path === '/api/register' && request.method === 'POST') {
+        let domain = DEFAULT_DOMAIN;
+        
+        try {
+          const body = await request.json();
+          if (body.domain && ALLOWED_DOMAINS.includes(body.domain.toLowerCase())) {
+            domain = body.domain.toLowerCase();
+          }
+        } catch (_) {
+          // Không có body hoặc body không hợp lệ, dùng domain mặc định
+        }
+        
         const username = this.generateUsername();
+        const kvKey = `emails:${username}@${domain}`;
         
         // Tạo inbox trống
         await env.TEMPMAIL_KV.put(
-          `emails:${username}`, 
+          kvKey, 
           JSON.stringify([]),
           { expirationTtl: 86400 }
         );
@@ -113,24 +157,36 @@ export default {
         return new Response(
           JSON.stringify({ 
             success: true, 
-            email: `${username}@store2003.online`,
-            username: username
+            email: `${username}@${domain}`,
+            username: username,
+            domain: domain,
+            allowedDomains: ALLOWED_DOMAINS
           }), 
           { headers: corsHeaders }
         );
       }
       
       // DELETE /api/emails/:username/:emailId - Xóa email
+      // Hỗ trợ query param ?domain=store2003.bond
       if (path.match(/^\/api\/emails\/[\w]+\/[\w-]+$/) && request.method === 'DELETE') {
         const parts = path.split('/');
         const username = parts[3]?.toLowerCase();
         const emailId = parts[4];
+        const domain = url.searchParams.get('domain')?.toLowerCase() || DEFAULT_DOMAIN;
         
-        let emails = await env.TEMPMAIL_KV.get(`emails:${username}`, 'json') || [];
+        if (!ALLOWED_DOMAINS.includes(domain)) {
+          return new Response(
+            JSON.stringify({ error: 'Invalid domain' }), 
+            { status: 400, headers: corsHeaders }
+          );
+        }
+        
+        const kvKey = `emails:${username}@${domain}`;
+        let emails = await env.TEMPMAIL_KV.get(kvKey, 'json') || [];
         emails = emails.filter(e => e.id !== emailId);
         
         await env.TEMPMAIL_KV.put(
-          `emails:${username}`, 
+          kvKey, 
           JSON.stringify(emails),
           { expirationTtl: 86400 }
         );
@@ -144,7 +200,15 @@ export default {
       // GET /api/health - Health check
       if (path === '/api/health') {
         return new Response(
-          JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }), 
+          JSON.stringify({ status: 'ok', timestamp: new Date().toISOString(), allowedDomains: ALLOWED_DOMAINS }), 
+          { headers: corsHeaders }
+        );
+      }
+      
+      // GET /api/domains - Lấy danh sách domain được hỗ trợ
+      if (path === '/api/domains') {
+        return new Response(
+          JSON.stringify({ success: true, domains: ALLOWED_DOMAINS, default: DEFAULT_DOMAIN }), 
           { headers: corsHeaders }
         );
       }

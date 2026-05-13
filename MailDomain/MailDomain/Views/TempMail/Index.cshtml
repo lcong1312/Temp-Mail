@@ -7,7 +7,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TempMail - Email Tạm Thời | store2003.online</title>
+    <title>TempMail - Email Tạm Thời | Multi-Domain</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="@Url.Content("~/Content/tempmail.css")">
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📧%3C/text%3E%3C/svg%3E">
@@ -29,6 +29,12 @@
                     <div class="email-display">
                         <input type="text" id="tempEmail" readonly placeholder="Đang tạo email...">
                     </div>
+                    <div class="domain-selector">
+                        <label for="domainSelect"><i class="fas fa-globe"></i> Chọn domain:</label>
+                        <select id="domainSelect" class="domain-select">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
                     <div class="email-actions">
                         <button class="btn-copy" onclick="copyEmail()" title="Sao chép">
                             <i class="fas fa-copy"></i>
@@ -42,7 +48,7 @@
                     <div class="restore-email-box">
                         <label for="restoreEmail"><i class="fas fa-history"></i> Lấy lại hộp thư theo email:</label>
                         <div class="restore-email-form">
-                            <input type="email" id="restoreEmail" placeholder="nhap-email-cu@store2003.online" onkeydown="handleRestoreEmailKeydown(event)">
+                            <input type="email" id="restoreEmail" placeholder="nhap-email-cu&#64;store2003.online hoặc &#64;lcong2003.cyou..." onkeydown="handleRestoreEmailKeydown(event)">
                             <button class="btn-restore-email" onclick="loadInboxByEmail()" title="Lấy gmail">
                                 <i class="fas fa-search"></i>
                                 <span>Lấy gmail</span>
@@ -147,6 +153,6 @@
         </footer>
     </div>
 
-    <script src="@Url.Content("~/Scripts/tempmail.js")"></script>
+    <script src="@Url.Content("~/Scripts/tempmail.js")?v=2"></script>
 </body>
 </html>

@@ -1,9 +1,18 @@
-// TempMail - store2003.online
+// TempMail - Multi-Domain
 // Cloudflare Workers API Integration
 
 const API_BASE = 'https://tempmail-store2003.levietcong2104.workers.dev';
-const DOMAIN = 'store2003.online';
+const DOMAINS = [
+    'store2003.online',
+    'lcong2003.cyou',
+    'store2003.cyou',
+    'store2003.bond',
+    'lcong2003.bond',
+    'vcong2003.cyou'
+];
+const DEFAULT_DOMAIN = DOMAINS[0];
 
+let currentDomain = DEFAULT_DOMAIN;
 let currentUsername = '';
 let currentEmail = '';
 let emails = [];
@@ -21,9 +30,26 @@ const SPAM_KEYWORDS = [
 
 // Initialize on page load
 document.addEventListener('DOMContentLoaded', () => {
+    initDomainSelector();
     initTempMail();
     startCountdown();
 });
+
+// Initialize domain selector dropdown
+function initDomainSelector() {
+    const select = document.getElementById('domainSelect');
+    if (!select) return;
+
+    // Populate options
+    select.innerHTML = DOMAINS.map(d =>
+        `<option value="${d}"${d === DEFAULT_DOMAIN ? ' selected' : ''}>${d}</option>`
+    ).join('');
+
+    select.addEventListener('change', async () => {
+        currentDomain = select.value;
+        await generateNewEmail();
+    });
+}
 
 // Initialize TempMail
 async function initTempMail() {
@@ -46,7 +72,8 @@ async function generateNewEmail() {
     try {
         const response = await fetch(`${API_BASE}/api/register`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' }
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ domain: currentDomain })
         });
         
         if (!response.ok) throw new Error('Cannot create email');
@@ -54,7 +81,8 @@ async function generateNewEmail() {
         const data = await response.json();
         
         currentUsername = data.username;
-        currentEmail = data.email;
+        // Dùng currentDomain thay vì data.email để không phụ thuộc vào worker cũ
+        currentEmail = `${data.username}@${currentDomain}`;
         
         // Don't save to localStorage - always create new email on page load
         
@@ -85,7 +113,7 @@ async function fetchEmails() {
     if (!currentUsername) return false;
     
     try {
-        const response = await fetch(`${API_BASE}/api/emails/${currentUsername}`);
+        const response = await fetch(`${API_BASE}/api/emails/${currentUsername}?domain=${encodeURIComponent(currentDomain)}`);
         
         if (!response.ok) throw new Error('Cannot fetch emails');
         
@@ -262,7 +290,12 @@ async function loadInboxByEmail() {
     
     try {
         currentUsername = parsed.username;
-        currentEmail = `${parsed.username}@${DOMAIN}`;
+        currentDomain = parsed.domain;
+        currentEmail = `${parsed.username}@${parsed.domain}`;
+        
+        // Sync dropdown
+        const select = document.getElementById('domainSelect');
+        if (select) select.value = currentDomain;
         document.getElementById('tempEmail').value = currentEmail;
         emails = [];
         filteredEmails = [];
@@ -292,8 +325,8 @@ function parseTempMailAddress(email) {
     }
     
     const parts = email.split('@');
-    if (parts.length !== 2 || parts[1] !== DOMAIN) {
-        return { valid: false, message: `Chỉ hỗ trợ email dạng ten@${DOMAIN}.` };
+    if (parts.length !== 2 || !DOMAINS.includes(parts[1])) {
+        return { valid: false, message: `Chỉ hỗ trợ email từ các domain: ${DOMAINS.join(', ')}.` };
     }
     
     const username = parts[0];
@@ -301,7 +334,7 @@ function parseTempMailAddress(email) {
         return { valid: false, message: 'Tên email không hợp lệ.' };
     }
     
-    return { valid: true, username };
+    return { valid: true, username, domain: parts[1] };
 }
 
 function setRestoreEmailMessage(message, isError) {
@@ -374,7 +407,7 @@ async function deleteEmailFromServer(emailId) {
     
     try {
         const response = await fetch(
-            `${API_BASE}/api/emails/${currentUsername}/${emailId}`,
+            `${API_BASE}/api/emails/${currentUsername}/${emailId}?domain=${encodeURIComponent(currentDomain)}`,
             { method: 'DELETE' }
         );
         return response.ok;
@@ -832,7 +865,7 @@ function showLoading(show) {
 // Show offline mode
 function showOfflineMode() {
     currentUsername = generateRandomString(10);
-    currentEmail = `${currentUsername}@${DOMAIN}`;
+    currentEmail = `${currentUsername}@${currentDomain}`;
     document.getElementById('tempEmail').value = currentEmail;
     
     const notice = document.createElement('div');
