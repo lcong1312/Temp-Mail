@@ -8,10 +8,11 @@ const ALLOWED_DOMAINS = [
   'store2003.cyou',
   'store2003.bond',
   'lcong2003.bond',
-  'vcong2003.cyou'
+  'vcong2003.cyou',
+  'azxcd121.cloud'
 ];
 
-const DEFAULT_DOMAIN = 'store2003.online';
+const DEFAULT_DOMAIN = ALLOWED_DOMAINS[Math.floor(Math.random() * ALLOWED_DOMAINS.length)];
 
 export default {
   // Xử lý email đến

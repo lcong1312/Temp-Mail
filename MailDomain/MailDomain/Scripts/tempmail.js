@@ -8,9 +8,10 @@ const DOMAINS = [
     'store2003.cyou',
     'store2003.bond',
     'lcong2003.bond',
-    'vcong2003.cyou'
+    'vcong2003.cyou',
+    'azxcd121.cloud'
 ];
-const DEFAULT_DOMAIN = DOMAINS[0];
+const DEFAULT_DOMAIN = DOMAINS[Math.floor(Math.random() * DOMAINS.length)];
 
 let currentDomain = DEFAULT_DOMAIN;
 let currentUsername = '';
